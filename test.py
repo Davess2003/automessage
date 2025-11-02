@@ -1,7 +1,9 @@
 import requests
 import time
+import threading
 from datetime import datetime, timedelta
 import pytz
+from flask import Flask
 
 
 # Your API token
@@ -42,7 +44,7 @@ def get_paginated_data(url, headers):
         if page >= meta.get("last_page", 1):
             break
         page += 1
-        time.sleep(0.1)  # Rate limiting
+        time.sleep(0.1)
     return all_data
 
 
@@ -64,6 +66,7 @@ def get_all_ids_for_properties(property_uuids):
                 'property_uuid': property_uuid
             })
         time.sleep(0.1)
+
         inquiries_url = f"https://public.api.hospitable.com/v2/inquiries?properties[]={property_uuid}&per_page=100&include=guest"
         inquiries = get_paginated_data(inquiries_url, headers)
         for inquiry in inquiries:
@@ -101,7 +104,7 @@ def check_last_message_sender(reservation_id):
 
 
 def run_script():
-    """Your main logic (runs once per cycle)"""
+    """Main logic (runs once per cycle)"""
     print(f"\n--- Running script at {datetime.now(THAILAND_TZ).strftime('%Y-%m-%d %H:%M:%S')} ---")
 
     res = requests.get(url, headers=headers)
@@ -145,82 +148,39 @@ def run_script():
         time.sleep(0.2)
 
 
-print("Auto-run schedule started...")
+# ============================================================
+# BACKGROUND LOOP (runs automatically every 15 mins)
+# ============================================================
+def background_loop():
+    print("Auto-run schedule started (Flask background thread)...")
+    while True:
+        now = datetime.now(THAILAND_TZ)
+        start_today = now.replace(hour=START_HOUR, minute=START_MINUTE, second=0, microsecond=0)
+        end_today = now.replace(hour=END_HOUR, minute=END_MINUTE, second=0, microsecond=0)
 
-while True:
-    now = datetime.now(THAILAND_TZ)
-    start_today = now.replace(hour=START_HOUR, minute=START_MINUTE, second=0, microsecond=0)
-    end_today = now.replace(hour=END_HOUR, minute=END_MINUTE, second=0, microsecond=0)
-
-    if start_today <= now <= end_today:
-        run_script()
-        print("Sleeping for 15 minutes...")
-        time.sleep(RUN_INTERVAL_MINUTES * 60)
-    else:
-        tomorrow_start = (now + timedelta(days=1)).replace(hour=START_HOUR, minute=START_MINUTE, second=0, microsecond=0)
-        sleep_seconds = (tomorrow_start - now).total_seconds()
-        print(f"Outside schedule ({now.strftime('%H:%M')}). Sleeping until next 12:15 AM...")
-        time.sleep(sleep_seconds)
-
-
-
-''' 
-payload = {
-    "body": (
-        "Hello. Thank you for reaching out to us. "
-        "Our working hours are between 10am - 9pm. "
-        "In case of emergencies, please contact or call "
-        "+33(0)64546 5371 on WhatsApp. Thank you."
-        "-----------------------------------------------------"
-        "This is an automated message sent via a python script"
-    )
-}
-
-for reservation_id in filtered_ids:
-    message_url = f"https://public.api.hospitable.com/v2/reservations/{reservation_id}/messages"
-    
-    response = requests.post(message_url, headers=headers, json=payload)
-    
-    if response.status_code == 201:
-        print(f"📨 Message sent successfully to reservation {reservation_id}")
-    else:
-        print(f"⚠️ Failed to send message to {reservation_id}: {response.status_code}, {response.text}")
-    
-    time.sleep(0.2)
-''' 
-    
-''' 
-HOW TO SEND A MESSAGE TO A GUESTTTT
+        if start_today <= now <= end_today:
+            run_script()
+            print("Sleeping for 15 minutes...\n")
+            time.sleep(RUN_INTERVAL_MINUTES * 60)
+        else:
+            tomorrow_start = (now + timedelta(days=1)).replace(hour=START_HOUR, minute=START_MINUTE, second=0, microsecond=0)
+            sleep_seconds = (tomorrow_start - now).total_seconds()
+            print(f"Outside schedule ({now.strftime('%H:%M')}). Sleeping until next 12:15 AM...\n")
+            time.sleep(sleep_seconds)
 
 
-import requests
+# ============================================================
+# FLASK WEB APP (keeps service alive on Render)
+# ============================================================
+app = Flask(__name__)
 
-# Your reservation details
-reservation_uuid = "dad5c057-0586-47f5-9212-4197f62beea6"
-bearer_token = "YOUR_BEARER_TOKEN"  # Replace with your actual token
+@app.route('/')
+def home():
+    return "✅ Hospitable Auto-Message Service is running."
 
-# API endpoint
-url = f"https://public.api.hospitable.com/v2/reservations/{reservation_uuid}/messages"
+# Start the background thread
+threading.Thread(target=background_loop, daemon=True).start()
 
-# Headers
-headers = {
-    "Authorization": f"Bearer {bearer_token}",
-    "Content-Type": "application/json"
-}
-
-# Message data
-data = {
-    "body": "Hi there! Just checking in to see how everything is going with your stay."
-}
-
-# Send the message
-response = requests.post(url, headers=headers, json=data)
-
-if response.status_code == 202:
-    result = response.json()
-    print(f"Message sent! Reference ID: {result['data']['sent_reference_id']}")
-else:
-    print(f"Error: {response.status_code} - {response.text}")
-
-
-'''
+if __name__ == "__main__":
+    # Flask app listens to 0.0.0.0 so Render can access it
+    app.run(host="0.0.0.0", port=10000)
