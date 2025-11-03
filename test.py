@@ -130,9 +130,9 @@ def run_script():
     payload = {
         "body": (
             "Hello. Thank you for reaching out to us. "
-            "Our working hours are between 10am - 9pm. "
+            "Our working hours are between 10am - 10pm. "
             "In case of emergencies, please contact or call "
-            "+33(0)64546 5371 on WhatsApp. Thank you."
+            "+33745465371 on WhatsApp. Thank you."
             "\n-----------------------------------------------------\n"
             "This is an automated message sent via a Python script."
         )
