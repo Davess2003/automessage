@@ -119,13 +119,16 @@ def run_script():
             last_sender, message_time = check_last_message_sender(item['id'])
             if message_time and last_sender == 'guest':
                 now = datetime.now(THAILAND_TZ)
-                if now - timedelta(hours=5) <= message_time <= now:
+                midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                five_pm = now.replace(hour=5, minute=0, second=0, microsecond=0)
+                if midnight <= message_time <= five_pm:
                     item['last_message_sender'] = last_sender
                     item['last_message_time'] = message_time.strftime('%Y-%m-%d %H:%M:%S')
                     filtered_ids.append(item)
                     print(f"ID: {item['id']} | Guest: {item['guest_name']} | "
-                          f"Last message by: {last_sender} | "
-                          f"Time: {message_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                        f"Last message by: {last_sender} | "
+                        f"Time: {message_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
 
     payload = {
         "body": (
