@@ -161,6 +161,10 @@ def background_loop():
         start_today = now.replace(hour=START_HOUR, minute=START_MINUTE, second=0, microsecond=0)
         end_today = now.replace(hour=END_HOUR, minute=END_MINUTE, second=0, microsecond=0)
 
+        if end_today < start_today:
+            end_today += timedelta(days=1)
+
+
         if start_today <= now <= end_today:
             run_script()
             print("Sleeping for 15 minutes...\n")
